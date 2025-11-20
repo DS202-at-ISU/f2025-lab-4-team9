@@ -1,0 +1,109 @@
+---
+title: " progress-report-betsy-hahn"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+
+```
+
+```{r, cleaning}
+library(rvest)
+library(dplyr)
+library(Lahman)
+HallOfFame
+library(fuzzyjoin)
+library(stringr)
+
+url <- "https://www.baseball-reference.com/awards/hof_2025.shtml"
+html <- read_html(url)
+tables <- html_table(html)
+data <- tables[[1]]
+
+#column names and remove first row
+colnames(data) <- data[1, ]
+data <- data[-1, ]
+
+#player names
+data$Name <- gsub("X-", "", data$Name)
+colnames(data)[colnames(data) == "%vote"] <- "pct"
+
+#numeric columns
+data$pct <- as.numeric(gsub("%", "", data$pct))
+data$Votes <- as.integer(gsub(",", "", data$Votes))
+
+#only relevant columns
+clean <- data %>%
+  select(Name, YoB, Votes, pct, Yrs)
+
+#ballots and needed votes
+cleaned <- clean %>%
+  mutate(
+    ballots = ceiling(Votes / (pct / 100)),
+    needed = ceiling(0.75 * ballots),
+    yearID = 2025,
+    votedBy = "BBWAA",
+    inducted = NA_character_,
+    category = "Player",
+    needed_note = NA_character_
+  ) %>%
+  select(yearID, votedBy, ballots, needed, Votes, inducted, category, needed_note, Name)
+
+#people table for matching
+people_names <- People %>%
+  mutate(full_name = paste(nameFirst, nameLast)) %>%
+  select(full_name, playerID)
+
+#match scraped names to Lahman playerID
+matched <- stringdist_left_join(
+  cleaned %>% select(Name),
+  people_names,
+  by = c("Name" = "full_name"),
+  method = "jw",
+  max_dist = 0.12   
+)
+
+#closest match per Name
+matched <- matched %>%
+  group_by(Name) %>%
+  slice_min(stringdist::stringdist(Name, full_name, method = "jw")) %>%
+  ungroup() %>%
+  select(Name, playerID)
+
+#playerID back to cleaned table
+cleaned <- cleaned %>%
+  left_join(matched, by = "Name")
+
+#reorder columns for Lahman-style
+cleaned <- cleaned %>%
+  select(
+    Name,
+    playerID,
+    yearID,
+    votedBy,
+    ballots,
+    needed,
+    Votes,
+    inducted,
+    category,
+    needed_note
+  )
+
+cleaned <- cleaned |>
+  mutate(
+    inducted = if_else(Votes > 296, "Y", "N")
+  )
+
+#cleaned table
+cleaned
+```
+
+
+
+
+
+
+
+
