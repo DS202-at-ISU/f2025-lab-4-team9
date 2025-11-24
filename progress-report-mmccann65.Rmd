@@ -23,9 +23,9 @@ tables <- html_table(html)
 
 data_raw <- tables[[1]]
 
-head(data_raw, 3)
-
 ```
+
+
 ```{r}
 # use first row as the actual column names
 actual_col_names <- data_raw[1, ]
