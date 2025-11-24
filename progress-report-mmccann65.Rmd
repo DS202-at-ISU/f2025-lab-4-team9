@@ -1,0 +1,82 @@
+---
+title: "progress-report-mmccann65"
+author: "Madison McCann"
+date: "2025-11-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(rvest)
+library(tidyverse)
+library(Lahman)
+
+#url
+url <- "https://www.baseball-reference.com/awards/hof_2025.shtml"
+
+#reading html
+html <- read_html(url)
+tables <- html_table(html)
+
+data_raw <- tables[[1]]
+
+head(data_raw, 3)
+
+```
+```{r}
+# use first row as the actual column names
+actual_col_names <- data_raw[1, ]
+colnames(data_raw) <- actual_col_names
+
+# remove first row
+data_clean <- data_raw[-1, ]
+
+data_cleaned <- data_clean |>
+  
+  select(
+    Name, 
+    YoB, 
+    Votes, 
+    `%vote`,
+    Jpos 
+  ) |>
+  # rename
+  rename(
+    Name = Name,
+    YoB = YoB,
+    votes = Votes,
+    vote_pct = `%vote`
+  )
+
+data_cleaned <- data_cleaned |>
+  mutate(
+    # convert votes to numeric
+    votes = as.numeric(votes),
+    
+    # to remove % and convert to numeric
+    vote_pct = parse_number(vote_pct) / 100, 
+    
+    inducted = ifelse(vote_pct >= 0.75, "Y", "N")
+  ) |>
+  
+  mutate(
+    yearID = 2025,
+    votedBy = "BBWAA",
+    category = "Player"
+  )
+
+data_final <- data_cleaned |>
+  mutate(
+    ballots = 394, # number of ballots cast
+    needed = 296  # votes needed for election
+  ) |>
+  
+  select(
+    yearID, Name, votedBy, ballots, needed, votes, inducted, category, YoB, vote_pct, Jpos
+  )
+
+print(data_final)
+```
