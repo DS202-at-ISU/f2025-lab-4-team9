@@ -1,0 +1,97 @@
+---
+title: "progress-report-marquis3"
+author: "Marcus Moore"
+output: html_document
+date: "2025-11-25"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r}
+library(tidyverse)
+library(rvest)
+library(readr)
+library(Lahman)
+
+
+url <- "https://www.baseball-reference.com/awards/hof_2025.shtml"
+
+html <- read_html(url)
+tables <- html_table(html)
+
+raw_2025 <- tables[[1]]
+head(raw_2025)
+
+
+col_names <- raw_2025[1, ]
+colnames(raw_2025) <- col_names
+
+hof2025_raw <- raw_2025[-1, ]
+head(hof2025_raw)
+names(hof2025_raw)
+
+
+names(hof2025_raw) <- make.unique(names(hof2025_raw))
+names(hof2025_raw)
+
+hof2025_clean <- hof2025_raw %>%
+mutate(
+Votes   = as.numeric(Votes),
+pctvote = parse_number(`%vote`),
+Yrs     = parse_number(Yrs)
+)
+
+#print(hof2025_clean)
+
+hof2025_group <- hof2025_clean %>%
+  transmute(
+    Name,                 
+    YoB,                  
+    Jpos,                 
+    vote_pct = pctvote,
+    votes   = Votes,      
+    yearID  = 2025L,
+    votedBy = "BBWAA",
+    ballots = 394L,       
+    needed  = 296L,       
+    inducted = if_else(votes >= needed, "Y", "N"),
+    category = "Player"
+  )
+
+#print(hof2025_group)
+
+
+#data("HallOfFame", package = "Lahman")
+
+#head(HallOfFame, 3)
+
+#HallOfFame %>%
+#count(yearID) %>%
+#arrange(desc(yearID)) %>%
+#head(10)
+
+
+data("People", package = "Lahman")
+
+hof2025_final <- hof2025_group %>%
+  left_join(
+    People %>%
+      mutate(Name = paste(nameFirst, nameLast)) %>%
+      select(playerID, Name),
+    by = "Name"
+  ) %>%
+  relocate(
+    Name, playerID, yearID, votedBy, ballots, needed,
+    votes, inducted, category, YoB, vote_pct, Jpos
+  )
+
+print(hof2025_final)
+
+
+```
+
+
