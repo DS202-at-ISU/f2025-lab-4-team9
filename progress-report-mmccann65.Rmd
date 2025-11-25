@@ -80,3 +80,9 @@ data_final <- data_cleaned |>
 
 print(data_final)
 ```
+```{r}
+
+write.csv(data_final, file = "HallOfFame_2025.csv", row.names = FALSE)
+
+```
+
